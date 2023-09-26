@@ -1,0 +1,27 @@
+{
+    "name": "d4mation/php-sniffs",
+    "description": "A set of PHP_CodeSniffer sniffs that I couldn't find anywhere else",
+    "type": "phpcodesniffer-standard",
+    "authors": [
+        {
+            "name": "Eric Defore",
+            "email": "7770631+d4mation@users.noreply.github.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "d4mation\\": "src/"
+        }
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "slevomat/coding-standard": "^8.13",
+        "wp-coding-standards/wpcs": "^2.3"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}
