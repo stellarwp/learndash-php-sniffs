@@ -1,6 +1,6 @@
 # stellarwp/learndash-php-sniffs
 
-A set of PHP_CodeSniffer sniffs that I couldn't find anywhere else.
+A set of PHP_Codesniffer sniffs specific to LearnDash development.
 
 Install this by running `composer require --dev stellarwp/learndash-php-sniffs`.
 
