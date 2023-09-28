@@ -1,5 +1,5 @@
 {
-    "name": "d4mation/php-sniffs",
+    "name": "stellarwp/learndash-php-sniffs",
     "description": "A set of PHP_CodeSniffer sniffs that I couldn't find anywhere else",
     "type": "phpcodesniffer-standard",
     "authors": [
@@ -11,7 +11,7 @@
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
-            "d4mation\\": "src/"
+            "StellarWP\\PHP_Sniffs\\LearnDash\\": "src/LearnDash/"
         }
     },
     "require-dev": {

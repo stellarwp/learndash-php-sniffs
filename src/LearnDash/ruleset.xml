@@ -1,4 +1,4 @@
 <?xml version="1.0"?>
-<ruleset name="d4mation">
+<ruleset name="LearnDash">
     <description>A set of PHP_CodeSniffer sniffs that I couldn't find anywhere else.</description>
 </ruleset>

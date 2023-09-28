@@ -2,10 +2,10 @@
 /**
  * Ensures that no empty lines exist immediately after or before a curly brace.
  *
- * @package d4mation/php-sniffs
+ * @package StellarWP/learndash-php-sniffs
  */
 
-namespace d4mation\Sniffs\Braces;
+namespace StellarWP\PHP_Sniffs\LearnDash\Sniffs\Braces;
 
 use PHP_CodeSniffer\Files\File;
 use PHP_CodeSniffer\Sniffs\Sniff;
