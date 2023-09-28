@@ -2,6 +2,7 @@
     "name": "stellarwp/learndash-php-sniffs",
     "description": "A set of PHP_CodeSniffer sniffs that I couldn't find anywhere else",
     "type": "phpcodesniffer-standard",
+    "license": "MIT",
     "authors": [
         {
             "name": "Eric Defore",
