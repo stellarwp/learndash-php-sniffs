@@ -42,7 +42,12 @@ class NoExtraSpacesSniff implements Sniff {
 		$next_token = $phpcs_file->findNext( T_WHITESPACE, $stack_index + 1, null, true );
 
 		// Check if the next token contains more than one space.
-		if ( $next_token !== false && $tokens[ $next_token ]['content'] !== ' ' ) {
+		// The check against linebreaks is used to prevent keywords that are not followed by anything (Like @after in our Tests) from causing issues.
+		if (
+			$next_token !== false
+			&& $tokens[ $next_token ]['content'] !== ' '
+			&& $tokens[ $next_token ]['content'] !== "\n"
+		) {
 			$error = 'Only one space is allowed after the keywords in docblocks.';
 			$fix   = $phpcs_file->addFixableError( $error, $stack_index, 'ExtraSpacesAfterKeyword' );
 

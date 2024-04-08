@@ -17,7 +17,7 @@ class NoEmptyLinesSniff implements Sniff {
 	/**
 	 * Returns an array of tokens this test wants to listen for.
 	 *
-	 * @return  array<string>
+	 * @return array<string>
 	 */
 	public function register(): array {
 		return array( T_OPEN_CURLY_BRACKET );
