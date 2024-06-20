@@ -137,7 +137,14 @@ class NoEmptyLinesSniff implements Sniff {
 				$phpcs_file->fixer->beginChangeset();
 
 				for ( $i = ( $previous + 1 ); $i < $closer; $i++ ) {
-					if ( $tokens[ $i ]['line'] !== $tokens[ $previous ]['line'] ) {
+					if (
+						$tokens[ $i ]['line'] !== $tokens[ $previous ]['line']
+						// Accounts for an edge case where the token immediately before the closing brace is a Comment with a line break at the end of it.
+						&& (
+							$tokens[ $i ]['line'] !== $tokens[ $previous ]['line'] + 1
+							|| $tokens[ $previous ]['type'] !== 'T_COMMENT'
+						)
+					) {
 						continue;
 					}
 
