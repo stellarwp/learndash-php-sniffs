@@ -3,7 +3,7 @@
  * Custom PHPCS sniff to check for valid sprintf format specifiers.
  *
  * @author LearnDash
- * @license GPL-2.0-or-later
+ * @package StellarWP/learndash-php-sniffs
  */
 
 use PHP_CodeSniffer\Files\File;
