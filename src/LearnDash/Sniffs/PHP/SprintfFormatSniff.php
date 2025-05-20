@@ -6,6 +6,8 @@
  * @package StellarWP/learndash-php-sniffs
  */
 
+namespace StellarWP\PHP_Sniffs\LearnDash\Sniffs\PHP;
+
 use PHP_CodeSniffer\Files\File;
 use PHP_CodeSniffer\Sniffs\Sniff;
 
@@ -17,9 +19,9 @@ class SprintfFormatSniff implements Sniff
     /**
      * Returns the tokens that this sniff is interested in.
      *
-     * @return array
+     * @return array<string>
      */
-    public function register()
+    public function register(): array
     {
         return [T_STRING];
     }
@@ -27,29 +29,29 @@ class SprintfFormatSniff implements Sniff
     /**
      * Processes this sniff, when one of its tokens is encountered.
      *
-     * @param File $phpcsFile The file being scanned.
-     * @param int  $stackPtr  The position of the current token in the stack.
+     * @param File $file       The file being scanned.
+     * @param int  $stackIndex The position of the current token in the stack.
      *
      * @return void
      */
-    public function process(File $phpcsFile, $stackPtr)
+    public function process(File $file, $stackIndex): void
     {
-        $tokens = $phpcsFile->getTokens();
-        $token  = $tokens[$stackPtr];
+        $tokens = $file->getTokens();
+        $token  = $tokens[$stackIndex];
 
         // Only check sprintf and printf calls.
-        if (!in_array(strtolower($token['content']), ['sprintf', 'printf'], true)) {
+        if (! in_array(strtolower($token['content']), ['sprintf', 'printf'], true)) {
             return;
         }
 
         // Find the opening parenthesis.
-        $openPtr = $phpcsFile->findNext(T_OPEN_PARENTHESIS, $stackPtr + 1);
+        $openPtr = $file->findNext(T_OPEN_PARENTHESIS, $stackIndex + 1);
         if (!$openPtr) {
             return;
         }
 
         // Find the first argument (should be a string literal).
-        $firstArgPtr = $phpcsFile->findNext([T_CONSTANT_ENCAPSED_STRING, T_DOUBLE_QUOTED_STRING], $openPtr + 1, null, false, null, true);
+        $firstArgPtr = $file->findNext([T_CONSTANT_ENCAPSED_STRING, T_DOUBLE_QUOTED_STRING], $openPtr + 1, null, false, null, true);
         if (!$firstArgPtr) {
             return;
         }
@@ -70,7 +72,7 @@ class SprintfFormatSniff implements Sniff
             $specifier = $match[0];
             if (!in_array($specifier, $allowed, true)) {
                 $fullMatch = $matches[0][$idx][0];
-                $phpcsFile->addError(
+                $file->addError(
                     'Invalid sprintf/printf format specifier: "%s"',
                     $firstArgPtr,
                     'InvalidSprintfSpecifier',
