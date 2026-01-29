@@ -20,18 +20,20 @@ use PHP_CodeSniffer\Sniffs\Sniff;
  */
 class MultilineConditionFormattingSniff implements Sniff {
 	/**
-	 * The number of spaces for indentation.
+	 * The string to use for one level of indentation.
 	 *
-	 * @var int
-	 */
-	public int $indent = 4;
-
-	/**
-	 * Whether to use tabs for indentation.
+	 * Defaults to tab (WordPress/LearnDash standard).
+	 * Can be configured in phpcs.xml:
 	 *
-	 * @var bool
+	 * <rule ref="LearnDash.CodeAnalysis.MultilineConditionFormatting">
+	 *     <properties>
+	 *         <property name="indent" value="    "/>
+	 *     </properties>
+	 * </rule>
+	 *
+	 * @var string
 	 */
-	public bool $use_tabs = true;
+	public string $indent = "\t";
 
 	/**
 	 * Returns an array of tokens this test wants to listen for.
@@ -104,19 +106,6 @@ class MultilineConditionFormattingSniff implements Sniff {
 		}
 
 		return '';
-	}
-
-	/**
-	 * Gets a single indentation unit.
-	 *
-	 * @return string
-	 */
-	private function get_indent_unit(): string {
-		if ( $this->use_tabs ) {
-			return "\t";
-		}
-
-		return str_repeat( ' ', $this->indent );
 	}
 
 	/**
@@ -275,7 +264,7 @@ class MultilineConditionFormattingSniff implements Sniff {
 		$open_paren_line_indent = $this->get_line_indent( $phpcs_file, $open_paren );
 
 		// Content indent is one level deeper than the opening paren line.
-		$content_indent = $open_paren_line_indent . $this->get_indent_unit();
+		$content_indent = $open_paren_line_indent . $this->indent;
 
 		$fixer->beginChangeset();
 
