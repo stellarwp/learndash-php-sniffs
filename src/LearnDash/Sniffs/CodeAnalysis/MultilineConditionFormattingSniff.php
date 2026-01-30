@@ -196,7 +196,7 @@ class MultilineConditionFormattingSniff implements Sniff {
 
 		if ( $open_line === $close_line && count( $operators ) > 0 ) {
 			// Single line with multiple conditions - should be multiline.
-			$fix = $phpcs_file->addFixableWarning(
+			$fix = $phpcs_file->addFixableError(
 				'Conditions with multiple boolean expressions should be split across multiple lines, with one condition per line.',
 				$open_paren,
 				'SingleLineMultipleConditions'
@@ -229,7 +229,7 @@ class MultilineConditionFormattingSniff implements Sniff {
 			// If there's a non-whitespace token before the operator on the same line,
 			// the operator is not at the start.
 			if ( $first_on_line !== null ) {
-				$fix = $phpcs_file->addFixableWarning(
+				$fix = $phpcs_file->addFixableError(
 					'Boolean operator "%s" should be at the beginning of the line, not after other code.',
 					$op_ptr,
 					'OperatorNotAtLineStart',
