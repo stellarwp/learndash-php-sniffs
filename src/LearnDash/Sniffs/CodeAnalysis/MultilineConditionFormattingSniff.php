@@ -72,8 +72,8 @@ class MultilineConditionFormattingSniff implements Sniff {
 
 		$close_paren = $tokens[ $open_paren ]['parenthesis_closer'];
 
-		// Get the base indentation from the control structure.
-		$base_indent = $this->get_line_indent( $phpcs_file, $stack_ptr );
+		// Get the base indentation from the control structure and normalize it.
+		$base_indent = $this->get_normalized_indent( $phpcs_file, $stack_ptr );
 
 		// Check this condition and any sub-conditions.
 		$this->check_condition_group( $phpcs_file, $open_paren, $close_paren, $base_indent, 1 );
@@ -106,6 +106,45 @@ class MultilineConditionFormattingSniff implements Sniff {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Gets the indentation level and returns a normalized indent string.
+	 *
+	 * This converts any existing indentation (tabs or spaces) to use
+	 * the configured indent character consistently.
+	 *
+	 * @param File $phpcs_file The file being scanned.
+	 * @param int  $stack_ptr  The position of the token.
+	 *
+	 * @return string The normalized indentation string.
+	 */
+	private function get_normalized_indent( File $phpcs_file, int $stack_ptr ): string {
+		$raw_indent = $this->get_line_indent( $phpcs_file, $stack_ptr );
+
+		if ( $raw_indent === '' ) {
+			return '';
+		}
+
+		// Count the indent level by measuring the visual width.
+		// Tabs count as 4 spaces for width calculation.
+		$tab_width    = 4;
+		$visual_width = 0;
+
+		for ( $i = 0; $i < strlen( $raw_indent ); $i++ ) {
+			if ( $raw_indent[ $i ] === "\t" ) {
+				// Tab advances to next tab stop.
+				$visual_width = ( (int) floor( $visual_width / $tab_width ) + 1 ) * $tab_width;
+			} else {
+				$visual_width++;
+			}
+		}
+
+		// Calculate indent level (round to nearest level).
+		$indent_level = (int) round( $visual_width / $tab_width );
+
+		// Return normalized indent using configured indent character.
+		return str_repeat( $this->indent, $indent_level );
 	}
 
 	/**
@@ -172,6 +211,13 @@ class MultilineConditionFormattingSniff implements Sniff {
 		// Recursively check nested groups.
 		foreach ( $nested_groups as $group ) {
 			$this->check_condition_group( $phpcs_file, $group[0], $group[1], $base_indent, $depth + 1 );
+		}
+
+		// Check for unnecessary parentheses around single conditions (only when there are operators at this level).
+		if ( count( $operators ) > 0 ) {
+			foreach ( $nested_groups as $group ) {
+				$this->check_unnecessary_parentheses( $phpcs_file, $group[0], $group[1] );
+			}
 		}
 	}
 
@@ -259,12 +305,11 @@ class MultilineConditionFormattingSniff implements Sniff {
 		$tokens = $phpcs_file->getTokens();
 		$fixer  = $phpcs_file->fixer;
 
-		// Get the indentation of the line containing the opening paren.
-		// This is used for the closing paren to maintain alignment.
-		$open_paren_line_indent = $this->get_line_indent( $phpcs_file, $open_paren );
-
-		// Content indent is one level deeper than the opening paren line.
-		$content_indent = $open_paren_line_indent . $this->indent;
+		// Calculate indentation levels.
+		// Content goes at base_indent + depth levels (inside the parentheses).
+		// Closing paren goes at base_indent + (depth - 1) levels (aligns with opening construct).
+		$content_indent      = $base_indent . str_repeat( $this->indent, $depth );
+		$close_paren_indent  = $base_indent . str_repeat( $this->indent, $depth - 1 );
 
 		$fixer->beginChangeset();
 
@@ -295,12 +340,12 @@ class MultilineConditionFormattingSniff implements Sniff {
 			}
 		}
 
-		// Add newline before closing paren at the same level as the opening paren line.
+		// Add newline before closing paren.
 		$prev = $close_paren - 1;
 		if ( $tokens[ $prev ]['code'] === T_WHITESPACE ) {
 			$fixer->replaceToken( $prev, '' );
 		}
-		$fixer->addContentBefore( $close_paren, "\n" . $open_paren_line_indent );
+		$fixer->addContentBefore( $close_paren, "\n" . $close_paren_indent );
 
 		$fixer->endChangeset();
 	}
@@ -320,9 +365,10 @@ class MultilineConditionFormattingSniff implements Sniff {
 		$tokens = $phpcs_file->getTokens();
 		$fixer  = $phpcs_file->fixer;
 
-		// Get the indentation from the current line (where the operator is).
-		// This ensures the operator stays at the same level as the condition above it.
-		$indent = $this->get_line_indent( $phpcs_file, $first_on_line );
+		// Calculate indent from base indent plus depth levels.
+		// We can't use get_line_indent here because multiline whitespace tokens
+		// (like "\n\t\t\t") are assigned to the previous line by PHPCS.
+		$indent = $base_indent . str_repeat( $this->indent, $depth );
 
 		$fixer->beginChangeset();
 
@@ -353,6 +399,160 @@ class MultilineConditionFormattingSniff implements Sniff {
 
 		// Add newline, indent, operator, and space before the next token.
 		$fixer->addContentBefore( $next_ptr, "\n" . $indent . $operator . ' ' );
+
+		$fixer->endChangeset();
+	}
+
+	/**
+	 * Checks if parentheses around a condition are unnecessary.
+	 *
+	 * Parentheses are unnecessary when they wrap a single expression
+	 * that has no boolean operators at its level.
+	 *
+	 * @param File $phpcs_file  The file being scanned.
+	 * @param int  $open_paren  The opening parenthesis position.
+	 * @param int  $close_paren The closing parenthesis position.
+	 *
+	 * @return void
+	 */
+	private function check_unnecessary_parentheses( File $phpcs_file, int $open_paren, int $close_paren ): void {
+		$tokens = $phpcs_file->getTokens();
+
+		// Skip if this is a function call (token before open paren is a string/function name).
+		$prev_non_whitespace = $phpcs_file->findPrevious(
+			[ T_WHITESPACE ],
+			$open_paren - 1,
+			null,
+			true
+		);
+
+		if ( $prev_non_whitespace !== false ) {
+			$prev_code = $tokens[ $prev_non_whitespace ]['code'];
+
+			// If preceded by a function name, variable, or closing paren (method call), skip.
+			if (
+				$prev_code === T_STRING
+				|| $prev_code === T_VARIABLE
+				|| $prev_code === T_CLOSE_PARENTHESIS
+			) {
+				return;
+			}
+
+			// Skip language constructs that require parentheses.
+			$language_constructs = [
+				T_EMPTY,
+				T_ISSET,
+				T_UNSET,
+				T_EVAL,
+				T_EXIT,
+				T_INCLUDE,
+				T_INCLUDE_ONCE,
+				T_REQUIRE,
+				T_REQUIRE_ONCE,
+				T_PRINT,
+				T_LIST,
+				T_ARRAY,
+			];
+
+			if ( in_array( $prev_code, $language_constructs, true ) ) {
+				return;
+			}
+		}
+
+		// Check if there are any boolean operators at this level.
+		$has_operators = false;
+		$nesting_level = 0;
+		$inner_content = false;
+
+		for ( $i = $open_paren + 1; $i < $close_paren; $i++ ) {
+			$token = $tokens[ $i ];
+
+			if ( $token['code'] === T_OPEN_PARENTHESIS ) {
+				$nesting_level++;
+				continue;
+			}
+
+			if ( $token['code'] === T_CLOSE_PARENTHESIS ) {
+				$nesting_level--;
+				continue;
+			}
+
+			// Skip whitespace.
+			if ( $token['code'] === T_WHITESPACE ) {
+				continue;
+			}
+
+			$inner_content = true;
+
+			// Only check operators at the current level.
+			if ( $nesting_level > 0 ) {
+				continue;
+			}
+
+			// Check for boolean operators.
+			if (
+				$token['code'] === T_BOOLEAN_AND
+				|| $token['code'] === T_BOOLEAN_OR
+				|| $token['code'] === T_LOGICAL_AND
+				|| $token['code'] === T_LOGICAL_OR
+			) {
+				$has_operators = true;
+				break;
+			}
+		}
+
+		// If there are no boolean operators and there's actual content, these parens are unnecessary.
+		if ( ! $has_operators && $inner_content ) {
+			$fix = $phpcs_file->addFixableError(
+				'Unnecessary parentheses around single condition. Remove the outer parentheses.',
+				$open_paren,
+				'UnnecessaryParentheses'
+			);
+
+			if ( $fix === true ) {
+				$this->fix_unnecessary_parentheses( $phpcs_file, $open_paren, $close_paren );
+			}
+		}
+	}
+
+	/**
+	 * Removes unnecessary parentheses around a condition.
+	 *
+	 * @param File $phpcs_file  The file being scanned.
+	 * @param int  $open_paren  The opening parenthesis position.
+	 * @param int  $close_paren The closing parenthesis position.
+	 *
+	 * @return void
+	 */
+	private function fix_unnecessary_parentheses( File $phpcs_file, int $open_paren, int $close_paren ): void {
+		$tokens = $phpcs_file->getTokens();
+		$fixer  = $phpcs_file->fixer;
+
+		$fixer->beginChangeset();
+
+		// Remove the opening parenthesis.
+		$fixer->replaceToken( $open_paren, '' );
+
+		// Remove whitespace after opening paren if present.
+		$next = $open_paren + 1;
+		if ( $tokens[ $next ]['code'] === T_WHITESPACE && trim( $tokens[ $next ]['content'] ) === '' ) {
+			// Only remove if it's just spaces, not newlines.
+			if ( strpos( $tokens[ $next ]['content'], "\n" ) === false ) {
+				$fixer->replaceToken( $next, '' );
+			}
+		}
+
+		// Remove whitespace before closing paren if present.
+		$prev = $close_paren - 1;
+		if ( $tokens[ $prev ]['code'] === T_WHITESPACE && trim( $tokens[ $prev ]['content'] ) === '' ) {
+			// Only remove if it's just spaces, not newlines.
+			if ( strpos( $tokens[ $prev ]['content'], "\n" ) === false ) {
+				$fixer->replaceToken( $prev, '' );
+			}
+		}
+
+		// Remove the closing parenthesis.
+		$fixer->replaceToken( $close_paren, '' );
 
 		$fixer->endChangeset();
 	}
